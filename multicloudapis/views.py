@@ -55,20 +55,21 @@ def uploadfile_gcp(request):
 def split(handle, chunk_size):
     dat = []
     size = os.path.getsize(handle)
-    num = size / chunksize
-    num += 1 if size % chunksize != 0 
-    file = open(handle, 'rb')
+    num = size / chunk_size
+    num += 1
+    if size % chunk_size != 0 :
+        file = open(handle, 'rb')
     for piece in range(num-1):
         dat.append(file.read())
     dat.append(file.read())
     file.close()
-    
+
 
     return dat
 
 def joinFile(handle, jobId):
-
-    file2 = open("C:\Users\sidda\Downloads\pythoncode\Cracking_coding_interview2.pdf", 'wb')
+    dat = []
+    file2 = open("C:\\Users\\sidda\\Downloads\\pythoncode\\Cracking_coding_interview2.pdf", 'wb')
     for d in dat:
         file2.write(d)
     file2.close()
