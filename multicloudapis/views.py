@@ -2,6 +2,7 @@
 
 import json
 
+from azure.storage.blob import BlockBlobService, PublicAccess
 from django.http import HttpResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods
@@ -46,3 +47,49 @@ def uploadfile_gcp(request):
                 }
             )
         )
+
+
+
+
+
+@require_http_methods(["POST"])
+@api_view(['POST'])
+@permission_classes([AllowAny])
+@csrf_exempt
+def uploadfile_azure(request):
+    if request.method == 'POST':
+        # Create the BlockBlockService that is used to call the Blob service for the storage account
+        block_blob_service = BlockBlobService(account_name='smokies',
+                                              account_key='ak9T7Jnd1gBJZdr9Bx5cVH85Iqwf7dFf7HN/WWEiadWDvh46O2/FMGkYtZVeCS9oT3DNiqMAe4uXP0SYZSByVw==')
+
+        # Create a container called 'quickstartblobs'.
+        container_name = 'quickstartblobs'
+        block_blob_service.create_container(container_name)
+
+        # Set the permission so the blobs are public.
+        block_blob_service.set_container_acl(container_name, public_access=PublicAccess.Container)
+
+        full_path_to_file = request.data['file_location']
+
+        # Write text to the file.
+        file = open(full_path_to_file, 'w')
+        # file.write("Hello, World!")
+        file.close()
+
+        print("Temp file = " + full_path_to_file)
+        print("\nUploading to Blob storage as blob" + full_path_to_file)
+
+        # Upload the created file, use local_file_name for the blob name
+        block_blob_service.create_blob_from_path(container_name, 'ram', full_path_to_file)
+
+        return HttpResponse(
+            json.dumps(
+                {
+                    'message': 'Successfully Uploaded file to the Google CLoud Platform'
+                }
+            )
+        )
+
+
+
+
