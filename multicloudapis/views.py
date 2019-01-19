@@ -13,6 +13,7 @@ from gcloud import storage
 from oauth2client.service_account import ServiceAccountCredentials
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import AllowAny
+import os
 
 
 @require_http_methods(["POST"])
@@ -51,6 +52,26 @@ def uploadfile_gcp(request):
             )
         )
 
+def split(handle, chunk_size):
+    dat = []
+    size = os.path.getsize(handle)
+    num = size / chunksize
+    num += 1 if size % chunksize != 0 
+    file = open(handle, 'rb')
+    for piece in range(num-1):
+        dat.append(file.read())
+    dat.append(file.read())
+    file.close()
+    
+
+    return dat
+
+def joinFile(handle, jobId):
+
+    file2 = open("C:\Users\sidda\Downloads\pythoncode\Cracking_coding_interview2.pdf", 'wb')
+    for d in dat:
+        file2.write(d)
+    file2.close()
 
 @require_http_methods(["POST"])
 @api_view(['POST'])
