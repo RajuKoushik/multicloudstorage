@@ -2,7 +2,10 @@
 
 import json
 
+import boto3
 from azure.storage.blob import BlockBlobService, PublicAccess
+from boto.s3.connection import S3Connection
+from boto3 import s3
 from django.http import HttpResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods
@@ -49,9 +52,6 @@ def uploadfile_gcp(request):
         )
 
 
-
-
-
 @require_http_methods(["POST"])
 @api_view(['POST'])
 @permission_classes([AllowAny])
@@ -71,6 +71,8 @@ def uploadfile_azure(request):
 
         full_path_to_file = request.data['file_location']
 
+        print(request.data['file_location'])
+
         # Write text to the file.
         file = open(full_path_to_file, 'w')
         # file.write("Hello, World!")
@@ -89,6 +91,56 @@ def uploadfile_azure(request):
                 }
             )
         )
+
+
+s3 = boto3.client('s3')
+bucket_name = 'my-bucket-hackathon'
+
+
+def upload(myfile):
+    # bucket = conn.get_bucket(bucket_name)
+    s3.upload_file(myfile, bucket_name, myfile)
+    return myfile
+
+
+# print(file)
+
+
+# bucket_name = 'my-bucket-hackathon'
+
+
+@require_http_methods(["POST"])
+@api_view(['POST'])
+@permission_classes([AllowAny])
+@csrf_exempt
+def uploadfile_aws(request):
+    if request.method == 'POST':
+        AWS_ID = "/oZ2q2jtDTdP06Dbh3R1ek/qlsMec6hOUqwssywo"
+        AWS_KEY = "AKIAIC4MFIXGKZ32HQEA"
+        conn = S3Connection(aws_access_key_id=AWS_ID, aws_secret_access_key=AWS_KEY)
+
+        file_path = request.data['file_location']
+        # s3 = boto3.client('s3',
+        #                   aws_access_key_id=AWS_ID,
+        #                   aws_secret_access_key=AWS_KEY)
+        s3 = boto3.client('s3')
+
+        mypath = "aws file"
+        filename = file_path
+        print(filename)
+        bucket_name = 'my-bucket-hackathon'
+        # bucket = conn.get_bucket(bucket_name)
+
+        s3.upload_file(filename, bucket_name, 'ram')
+
+        return HttpResponse(
+            json.dumps(
+                {
+                    'message': 'Successfully Uploaded file to the AWS Platform'
+                }
+            )
+        )
+
 
 
 
