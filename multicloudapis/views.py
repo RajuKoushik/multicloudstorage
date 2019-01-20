@@ -317,3 +317,16 @@ def uploadfile_aws(request):
                 }
             )
         )
+
+
+def download_aws(request):
+    if request.method == 'POST':
+        s3 = boto3.resource('s3')
+        # Bucket = 'my-bucket-hackathon'
+        # Key = 'qwer.txt'
+        bucket = s3.Bucket('my-bucket-hackathon')
+        for object in bucket.objects.all():
+            print(object)
+            obj = object.key
+            with open(obj, 'wb') as data:
+                bucket.download_fileobj(obj, data)
