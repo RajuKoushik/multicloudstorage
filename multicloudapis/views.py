@@ -97,6 +97,25 @@ def upload_azure_func(file, filename):
     block_blob_service.create_blob_from_text(container_name, filename, file)
 
 
+# def upload_aws_func(file, filename):
+#     AWS_ID = "/oZ2q2jtDTdP06Dbh3R1ek/qlsMec6hOUqwssywo"
+#     AWS_KEY = "AKIAIC4MFIXGKZ32HQEA"
+#     conn = S3Connection(aws_access_key_id=AWS_ID, aws_secret_access_key=AWS_KEY)
+#
+#     # s3 = boto3.client('s3',
+#     #                   aws_access_key_id=AWS_ID,
+#     #                   aws_secret_access_key=AWS_KEY)
+#     s3 = boto3.client('s3')
+#
+#     mypath = "aws file"
+#     # filename = file_path
+#     print(filename)
+#     bucket_name = 'my-bucket-hackathon'
+#     # bucket = conn.get_bucket(bucket_name)
+#
+#     s3.upload_file(file, bucket_name, filename)
+
+
 def split(handle, chunk_size):
     dat = []
     size = os.path.getsize(handle)
