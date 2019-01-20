@@ -56,9 +56,9 @@ def split(handle, chunk_size):
     dat = []
     size = os.path.getsize(handle)
     num = size / chunk_size
-    num += 1
     if size % chunk_size != 0 :
-        file = open(handle, 'rb')
+        num += 1
+    file = open(handle, 'rb')
     for piece in range(num-1):
         dat.append(file.read())
     dat.append(file.read())
