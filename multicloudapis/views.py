@@ -17,6 +17,17 @@ from rest_framework.permissions import AllowAny
 
 from . import models
 
+"""
+The universal-upload api takes in the location of the
+file to be uploaded to the cloud and hosts the file
+onto multiple cloud-providers. The file is initially
+divided into small chunks of data which is uploaded
+sequentially onto different providers. To ensure
+security of data we save the XOR of files of every two
+chunks of data onto a provider.
+
+"""
+
 
 @require_http_methods(["POST"])
 @api_view(['POST'])
@@ -103,10 +114,16 @@ def universal_uploadfile(request):
         return HttpResponse(
             json.dumps(
                 {
-                    'message': 'Successfully Uploaded file to the AWS Platform'
+                    'message': 'Successfully Uploaded file to the cloud providers.'
                 }
             )
         )
+
+
+"""
+The Universal Download API downloads all the chunks of data from different servers and integrates into a singlke data file
+to trace back the original data file.
+"""
 
 
 @require_http_methods(["POST"])
