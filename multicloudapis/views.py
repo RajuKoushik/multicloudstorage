@@ -2,8 +2,8 @@
 
 import json
 import os
-
 import boto3
+from django.shortcuts import render, get_object_or_404, redirect
 import hashlib
 from azure.storage.blob import BlockBlobService, PublicAccess
 from boto.s3.connection import S3Connection
@@ -14,6 +14,61 @@ from gcloud import storage
 from oauth2client.service_account import ServiceAccountCredentials
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import AllowAny
+
+
+@csrf_exempt
+def home(request):
+    if request.method == "POST":
+        print("in the home post")
+        chunk_size = 2097152
+        counter = 0
+        handle = request.POST.get('file_location')
+        print(handle)
+        dat = []
+        size = os.path.getsize(handle)
+        num = int(size / chunk_size)
+        if size % chunk_size != 0:
+            num += 1
+        file = open(handle, 'rb')
+        filename = str(counter)
+        print('size ' + str(size))
+        print(num)
+        flag = 0
+        for piece in range(num - 1):
+            # dat.append(file.read())
+            if counter % 2 == 0:
+                upload_gcp_func(file.read(chunk_size).decode('utf-8'), str(counter))
+                flag = flag + chunk_size
+            else:
+                upload_azure_func(file.read(chunk_size), str(counter))
+                flag = flag + chunk_size
+            counter = counter + 1
+            # file.close()
+
+        rem_chunk_size = (size - flag)
+
+        print('rem' + str(rem_chunk_size))
+
+        if num % 2 != 0:
+            upload_gcp_func(file.read(int(rem_chunk_size / 2)), str(counter))
+            counter = counter + 1
+            upload_azure_func(file.read(int(rem_chunk_size / 2)), str(counter))
+        else:
+
+            if counter % 2 == 0:
+                upload_gcp_func(file.read(chunk_size).decode('utf-8'), str(counter))
+            else:
+                upload_azure_func(file.read(chunk_size).decode('utf-8'), str(counter))
+
+        return HttpResponse(
+            json.dumps(
+                {
+                    'message': 'Successfully Uploaded file to the AWS Platform'
+                }
+            )
+        )
+    else:
+        return render(request, 'multicloudapis/submit_file.html')
 
 
 @require_http_methods(["POST"])
@@ -168,59 +223,62 @@ def uploadfile_chunk_gcp(request):
         )
 
 
-@require_http_methods(["POST"])
-@api_view(['POST'])
-@permission_classes([AllowAny])
-@csrf_exempt
-def universal_uploadfile_chunk(request):
-    if request.method == 'POST':
-
-        chunk_size = 2097152
-        counter = 0
-
-        handle = request.data['file_location']
-        dat = []
-        size = os.path.getsize(handle)
-        num = int(size / chunk_size)
-
-        file = open(handle, 'rb')
-        filename = str(counter)
-        print('size ' + str(size))
-        print(num)
-        flag = 0
-        for piece in range(num - 1):
-            # dat.append(file.read())
-            if counter % 2 == 0:
-                upload_gcp_func(file.read(chunk_size), str(counter))
-                flag = flag + chunk_size
-            else:
-                upload_azure_func(file.read(chunk_size), str(counter))
-                flag = flag + chunk_size
-            counter = counter + 1
-            # file.close()
-
-        rem_chunk_size = (size - flag)
-
-        print('rem' + str(rem_chunk_size))
-
-        if num % 2 != 0:
-            upload_gcp_func(file.read(int(rem_chunk_size / 2)), str(counter))
-            counter = counter + 1
-            upload_azure_func(file.read(int(rem_chunk_size / 2)), str(counter))
-        else:
-
-            if counter % 2 == 0:
-                upload_gcp_func(file.read(chunk_size), str(counter))
-            else:
-                upload_azure_func(file.read(chunk_size), str(counter))
-
-        return HttpResponse(
-            json.dumps(
-                {
-                    'message': 'Successfully Uploaded file to the AWS Platform'
-                }
-            )
-        )
+#
+# @require_http_methods(["POST"])
+# @api_view(['POST'])
+# @permission_classes([AllowAny])
+# @csrf_exempt
+# def universal_uploadfile_chunk(request):
+#     print("Outside method")
+#     if request.method == 'POST':
+#
+#         chunk_size = 2097152
+#         counter = 0
+#         handle = request.POST['file_location']
+#         print("ygfds" + handle)
+#         dat = []
+#         size = os.path.getsize(handle)
+#         num = int(size / chunk_size)
+#         if size % chunk_size != 0:
+#             num += 1
+#         file = open(handle, 'rb')
+#         filename = str(counter)
+#         print('size ' + str(size))
+#         print(num)
+#         flag = 0
+#         for piece in range(num - 1):
+#             # dat.append(file.read())
+#             if counter % 2 == 0:
+#                 upload_gcp_func(file.read(chunk_size).decode('utf-8'), str(counter))
+#                 flag = flag + chunk_size
+#             else:
+#                 upload_azure_func(file.read(chunk_size), str(counter))
+#                 flag = flag + chunk_size
+#             counter = counter + 1
+#             # file.close()
+#
+#         rem_chunk_size = (size - flag)
+#
+#         print('rem' + str(rem_chunk_size))
+#
+#         if num % 2 != 0:
+#             upload_gcp_func(file.read(int(rem_chunk_size / 2)), str(counter))
+#             counter = counter + 1
+#             upload_azure_func(file.read(int(rem_chunk_size / 2)), str(counter))
+#         else:
+#
+#             if counter % 2 == 0:
+#                 upload_gcp_func(file.read(chunk_size).decode('utf-8'), str(counter))
+#             else:
+#                 upload_azure_func(file.read(chunk_size).decode('utf-8'), str(counter))
+#
+#         return HttpResponse(
+#             json.dumps(
+#                 {
+#                     'message': 'Successfully Uploaded file to the AWS Platform'
+#                 }
+#             )
+#         )
 
 
 def joinFile(handle, jobId):
@@ -421,6 +479,7 @@ def azure_downloadtxt(myblockblob):
     print(blob.content)
     print("content downloaded !! ")
 
+
 def md5(fname):
     hash_md5 = hashlib.md5()
     with open(fname, "rb") as f:
@@ -429,8 +488,6 @@ def md5(fname):
 
     print(hash_md5.hexdigest())
     return hash_md5.hexdigest()
-
-
 
 # @require_http_methods(["POST"])
 # @api_view(['POST'])
