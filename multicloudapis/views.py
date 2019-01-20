@@ -1,5 +1,6 @@
 # Create your views here.
 
+import hashlib
 import json
 import os
 
@@ -185,6 +186,7 @@ def universal_uploadfile_chunk(request):
 
         county = models.CloudFileSystem()
         county.name = 'ram'
+        county.file_location = request.data['file_location']
         azure_count = 0
         gcp_count = 0
 
@@ -518,7 +520,6 @@ def universal_download(request):
                         file1_b = bytearray(gcp_blob)
                         file2_b = bytearray(aws_blob)
 
-
                         # Set the length to be the smaller one
                         size = len(file1_b) if len(file1_b) < len(file2_b) else len(file2_b)
                         azure_blob = bytearray(size)
@@ -528,7 +529,7 @@ def universal_download(request):
                             azure_blob[ii] = file1_b[ii] ^ file2_b[ii]
 
                 if gcp_blob is None:
-                    aws_blob = aws_downloadtxt(str(i-1)+"_"+str(i))
+                    aws_blob = aws_downloadtxt(str(i - 1) + "_" + str(i))
                     file1_b = bytearray(azure_blob)
                     file2_b = bytearray(aws_blob)
 
@@ -542,18 +543,30 @@ def universal_download(request):
                     file2.write(gcp_blob)
                 file2.write(azure_blob)
 
-
         file2.close()
 
+        if md5(final_file_path) == md5(job_name.file_location):
+            checksum = "Checksum successful."
+
         # upload_gcp_func(file.read(), 'final')
-
-
-
 
         return HttpResponse(
             json.dumps(
                 {
-                    'message': 'Successfully Uploaded file to the AWS Platform'
+                    'message': 'Successfully Uploaded file to the AWS Platform',
+                    'checksum': checksum,
+                    'hash_value_of_the_uploaded_file': md5(job_name.file_location),
+                    'hash_value_of_the_final_generated_file': md5(final_file_path)
                 }
             )
         )
+
+
+def md5(fname):
+    hash_md5 = hashlib.md5()
+    with open(fname, "rb") as f:
+        for chunk in iter(lambda: f.read(4096), b""):
+            hash_md5.update(chunk)
+
+    print(hash_md5.hexdigest())
+    return hash_md5.hexdigest()
