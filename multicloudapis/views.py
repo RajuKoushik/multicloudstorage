@@ -311,3 +311,83 @@ def download_aws(request):
             obj = object.key
             with open(obj, 'wb') as data:
                 bucket.download_fileobj(obj, data)
+
+
+def uploadfile_azure2():
+
+#    if request.method == 'POST':
+        # Create the BlockBlockService that is used to call the Blob service for the storage account
+ try: 
+        block_blob_service = BlockBlobService(account_name='smokies',
+                                              account_key='ak9T7Jnd1gBJZdr9Bx5cVH85Iqwf7dFf7HN/WWEiadWDvh46O2/FMGkYtZVeCS9oT3DNiqMAe4uXP0SYZSByVw==')
+
+        # Create a container called 'quickstartblobs'.
+        container_name = 'quickstartblobs'
+        block_blob_service.create_container(container_name)
+
+        # Set the permission so the blobs are public.
+        block_blob_service.set_container_acl(container_name, public_access=PublicAccess.Container)
+
+     #   full_path_to_file =  
+
+	local_path=os.path.expanduser("~/Downloads")
+        local_file_name ='10mb.txt'
+	full_path_to_file =os.path.join(local_path, local_file_name)
+
+	local_path1=os.path.expanduser("~/Downloads")
+        local_file_name1 ='10MBfile'
+	full_path_to_file1 =os.path.join(local_path1, local_file_name1)
+
+	local_path2=os.path.expanduser("~/Downloads")
+        local_file_name2 ='xorfiledirect'
+	full_path_to_file2 =os.path.join(local_path2, local_file_name2)
+
+       # print(request.data['file_location'])
+
+        # Write text to the file.
+       # file = open(full_path_to_file, 'w')
+        # file.write("Hello, World!")
+      #  file.close()
+
+      #  print("Temp file = " + full_path_to_file)
+        print("\nUploading to Blob storage as blob" + full_path_to_file)
+
+
+
+		 
+	# Read two files as byte arrays
+	file1_b = bytearray(open(full_path_to_file, 'rb').read())
+	file2_b = bytearray(open(full_path_to_file1, 'rb').read())
+	 
+	#file1_b = bytearray(open(full_path_to_file, 'rb').read()
+	#file2_b = open(full_path_to_file1, 'rb').read()
+
+	
+	# Set the length to be the smaller one
+	size = len(file1_b) if len(file1_b) < len(file2_b) else len(file2_b)
+	xord_byte_array = bytearray(size)
+	 
+	# XOR between the files
+	for i in range(size):
+		xord_byte_array[i] = file1_b[i] ^ file2_b[i]
+	 
+	# Write the XORd bytes to the output file	
+	open(full_path_to_file2, 'wb').write(xord_byte_array)
+	
+	print("file is being written XORED") 
+   #	print "[*] %s XOR %s\n[*] Saved to \033[1;33m%s\033[1;m."%(sys.argv[1], sys.argv[2], sys.argv[3])
+
+        # Upload the created file, use local_file_name for the blob name
+        block_blob_service.create_blob_from_path(container_name,local_file_name2, full_path_to_file2)
+
+	print("file successfully uploaded")
+        '''return HttpResponse(
+            json.dumps(
+                {
+                    'message': 'Successfully Uploaded file to the Google CLoud Platform'
+                }
+            )
+        )'''
+
+ except Exception as e:
+ 	    print(e)
