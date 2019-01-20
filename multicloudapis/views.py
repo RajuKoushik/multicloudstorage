@@ -6,7 +6,6 @@ import os
 import boto3
 from azure.storage.blob import BlockBlobService, PublicAccess
 from boto.s3.connection import S3Connection
-from boto3 import s3
 from django.http import HttpResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods
@@ -76,6 +75,28 @@ def upload_gcp_func(file, filename):
     blob.upload_from_string(file)
 
 
+def upload_azure_func(file, filename):
+    block_blob_service = BlockBlobService(account_name='smokies',
+                                          account_key='ak9T7Jnd1gBJZdr9Bx5cVH85Iqwf7dFf7HN/WWEiadWDvh46O2/FMGkYtZVeCS9oT3DNiqMAe4uXP0SYZSByVw==')
+
+    # Create a container called 'quickstartblobs'.
+    container_name = 'quickstartblobs'
+    block_blob_service.create_container(container_name)
+
+    # Set the permission so the blobs are public.
+    block_blob_service.set_container_acl(container_name, public_access=PublicAccess.Container)
+
+    full_path_to_file = file
+
+    # print(request.data['file_location'])
+
+    # print("Temp file = " + full_path_to_file)
+    # print("\nUploading to Blob storage as blob" + full_path_to_file)
+
+    # Upload the created file, use local_file_name for the blob name
+    block_blob_service.create_blob_from_text(container_name, filename, file)
+
+
 def split(handle, chunk_size):
     dat = []
     size = os.path.getsize(handle)
@@ -131,10 +152,10 @@ def uploadfile_chunk_gcp(request):
 @api_view(['POST'])
 @permission_classes([AllowAny])
 @csrf_exempt
-def universal_uploadfile_chunk_gcp(request):
+def universal_uploadfile_chunk(request):
     if request.method == 'POST':
 
-        chunk_size = 3145728
+        chunk_size = 2097152
         counter = 0
 
         handle = request.data['file_location']
@@ -147,16 +168,33 @@ def universal_uploadfile_chunk_gcp(request):
         filename = str(counter)
         print('size ' + str(size))
         print(num)
-
+        flag = 0
         for piece in range(num - 1):
             # dat.append(file.read())
             if counter % 2 == 0:
                 upload_gcp_func(file.read(chunk_size).decode('utf-8'), str(counter))
-            # else:
-            #
-            # counter = counter + 1
-            # # file.close()
-        upload_gcp_func(file.read(chunk_size).decode('utf-8'), str(counter))
+                flag = flag + chunk_size
+            else:
+                upload_azure_func(file.read(chunk_size), str(counter))
+                flag = flag + chunk_size
+            counter = counter + 1
+            # file.close()
+
+        rem_chunk_size = (size - flag)
+
+        print('rem' + str(rem_chunk_size))
+
+        if num % 2 != 0:
+            upload_gcp_func(file.read(int(rem_chunk_size / 2)), str(counter))
+            counter = counter + 1
+            upload_azure_func(file.read(int(rem_chunk_size / 2)), str(counter))
+        else:
+
+            if counter % 2 == 0:
+                upload_gcp_func(file.read(chunk_size).decode('utf-8'), str(counter))
+            else:
+                upload_azure_func(file.read(chunk_size).decode('utf-8'), str(counter))
+
         return HttpResponse(
             json.dumps(
                 {
@@ -213,7 +251,6 @@ def uploadfile_azure(request):
                 }
             )
         )
-
 
 
 def upload(myfile):
