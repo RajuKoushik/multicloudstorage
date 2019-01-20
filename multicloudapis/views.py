@@ -22,6 +22,198 @@ from . import models
 @api_view(['POST'])
 @permission_classes([AllowAny])
 @csrf_exempt
+def universal_uploadfile(request):
+    if request.method == 'POST':
+
+        pram = models.CloudFileSystem.objects.filter(name='ram')
+        pram.delete()
+
+        # global aws_file_counter
+        # global settings.AZURE_FILE_COUNTER
+        # global settings.GCP_FILE_COUNTER
+
+        county = models.CloudFileSystem()
+        county.name = 'ram'
+        county.file_location = request.data['file_location']
+        azure_count = 0
+        gcp_count = 0
+
+        chunk_size = 2097152
+        counter = 0
+
+        handle = request.data['file_location']
+        dat = []
+        size = os.path.getsize(handle)
+        num = int(size / chunk_size)
+        file = open(handle, 'rb')
+        filename = str(counter)
+
+        flag = 0
+        for piece in range(num - 1):
+            # dat.append(file.read())
+            if counter % 2 == 0:
+
+                data_gcp = file.read(chunk_size)
+                upload_gcp_func(data_gcp, str(counter))
+                gcp_count = gcp_count + 1
+                flag = flag + chunk_size
+            else:
+                data_azure = file.read(chunk_size)
+                upload_azure_func(data_azure, str(counter))
+                azure_count = azure_count + 1
+                flag = flag + chunk_size
+                l = bytes(a ^ b for a, b in zip(data_gcp, data_azure))
+                upload_aws_func(l, str(counter - 1) + "_" + str(counter))
+            counter = counter + 1
+            # file.close()
+
+        rem_chunk_size = (size - flag)
+
+        if num % 2 != 0:
+
+            data_gcp = file.read(int(rem_chunk_size / 2))
+            upload_gcp_func(data_gcp, str(counter))
+            gcp_count = gcp_count + 1
+            counter = counter + 1
+            data_azure = file.read(int(rem_chunk_size / 2))
+            upload_azure_func(data_azure, str(counter))
+            azure_count = azure_count + 1
+
+            l = bytes(a ^ b for a, b in zip(data_gcp, data_azure))
+            upload_aws_func(l, str(counter - 1) + "_" + str(counter))
+
+        else:
+
+            if counter % 2 == 0:
+                data_gcp = file.read(chunk_size)
+                upload_gcp_func(data_gcp, str(counter))
+                gcp_count = gcp_count + 1
+            else:
+                data_gcp = file.read(chunk_size)
+                upload_gcp_func(data_gcp, str(counter))
+                azure_count = azure_count + 1
+
+                l = bytes(a ^ b for a, b in zip(data_gcp, data_azure))
+                upload_aws_func(l, str(counter - 1) + "_" + str(counter))
+
+        county.azure_count = azure_count
+        county.gcp_count = gcp_count
+        county.save()
+
+        return HttpResponse(
+            json.dumps(
+                {
+                    'message': 'Successfully Uploaded file to the AWS Platform'
+                }
+            )
+        )
+
+
+@require_http_methods(["POST"])
+@api_view(['POST'])
+@permission_classes([AllowAny])
+@csrf_exempt
+def universal_download(request):
+    if request.method == 'POST':
+
+        final_file_path = request.data['file_location']
+
+        file2 = open(final_file_path, 'wb')
+        # file2.write(d)
+
+        job_name = models.CloudFileSystem.objects.get(name='ram')
+
+        total_file_count = job_name.gcp_count + job_name.azure_count
+
+        # total_file_count = 6
+
+        # print(total_file_count)
+
+        for i in range(total_file_count):
+
+            if i % 2 == 0:
+                try:
+                    gcp_blob = download_blob_gcp(str(i))
+                    file2.write(gcp_blob)
+                except:
+                    gcp_blob = None
+
+            else:
+                try:
+                    azure_blob = azure_downloadtxt(str(i))
+                except:
+                    azure_blob = None
+                    if gcp_blob is None:
+                        print("Data is corrupted!!")
+                        return HttpResponse(
+                            json.dumps(
+                                {
+                                    'message': 'The data has been corrupted.',
+
+                                }
+                            )
+                        )
+                    else:
+                        aws_blob = aws_downloadtxt(str(i - 1) + "_" + str(i))
+                        file1_b = bytearray(gcp_blob)
+                        file2_b = bytearray(aws_blob)
+
+                        # Set the length to be the smaller one
+                        size = len(file1_b) if len(file1_b) < len(file2_b) else len(file2_b)
+                        azure_blob = bytearray(size)
+
+                        # XOR between the files
+                        for ii in range(size):
+                            azure_blob[ii] = file1_b[ii] ^ file2_b[ii]
+
+                if gcp_blob is None:
+                    aws_blob = aws_downloadtxt(str(i - 1) + "_" + str(i))
+                    file1_b = bytearray(azure_blob)
+                    file2_b = bytearray(aws_blob)
+
+                    # Set the length to be the smaller one
+                    size = len(file1_b) if len(file1_b) < len(file2_b) else len(file2_b)
+                    gcp_blob = bytearray(size)
+
+                    # XOR between the files
+                    for ii in range(size):
+                        gcp_blob[ii] = file1_b[ii] ^ file2_b[ii]
+                    file2.write(gcp_blob)
+                file2.write(azure_blob)
+
+        file2.close()
+
+        if md5(final_file_path) == md5(job_name.file_location):
+            checksum = "Checksum successful."
+
+        # upload_gcp_func(file.read(), 'final')
+
+        return HttpResponse(
+            json.dumps(
+                {
+                    'message': 'Successfully Uploaded file to the AWS Platform',
+                    'checksum': checksum,
+                    'hash_value_of_the_uploaded_file': md5(job_name.file_location),
+                    'hash_value_of_the_final_generated_file': md5(final_file_path)
+                }
+            )
+        )
+
+
+def md5(fname):
+    hash_md5 = hashlib.md5()
+    with open(fname, "rb") as f:
+        for chunk in iter(lambda: f.read(4096), b""):
+            hash_md5.update(chunk)
+
+    print(hash_md5.hexdigest())
+    return hash_md5.hexdigest()
+
+
+@require_http_methods(["POST"])
+@api_view(['POST'])
+@permission_classes([AllowAny])
+@csrf_exempt
 def uploadfile_gcp(request):
     if request.method == 'POST':
         credentials_dict = {
@@ -152,8 +344,8 @@ def uploadfile_chunk_gcp(request):
             num += 1
         file = open(handle, 'rb')
         filename = str(counter)
-        print('size ' + str(size))
-        print(num)
+        # print('size ' + str(size))
+        # print(num)
 
         for piece in range(num - 1):
             # dat.append(file.read())
@@ -161,97 +353,6 @@ def uploadfile_chunk_gcp(request):
             counter = counter + 1
             # file.close()
         upload_gcp_func(file.read(chunk_size).decode('utf-8'), str(counter))
-        return HttpResponse(
-            json.dumps(
-                {
-                    'message': 'Successfully Uploaded file to the AWS Platform'
-                }
-            )
-        )
-
-
-@require_http_methods(["POST"])
-@api_view(['POST'])
-@permission_classes([AllowAny])
-@csrf_exempt
-def universal_uploadfile_chunk(request):
-    if request.method == 'POST':
-
-        pram = models.CloudFileSystem.objects.filter(name='ram')
-        pram.delete()
-
-        # global aws_file_counter
-        # global settings.AZURE_FILE_COUNTER
-        # global settings.GCP_FILE_COUNTER
-
-        county = models.CloudFileSystem()
-        county.name = 'ram'
-        county.file_location = request.data['file_location']
-        azure_count = 0
-        gcp_count = 0
-
-        chunk_size = 2097152
-        counter = 0
-
-        handle = request.data['file_location']
-        dat = []
-        size = os.path.getsize(handle)
-        num = int(size / chunk_size)
-        file = open(handle, 'rb')
-        filename = str(counter)
-
-        flag = 0
-        for piece in range(num - 1):
-            # dat.append(file.read())
-            if counter % 2 == 0:
-
-                data_gcp = file.read(chunk_size)
-                upload_gcp_func(data_gcp, str(counter))
-                gcp_count = gcp_count + 1
-                flag = flag + chunk_size
-            else:
-                data_azure = file.read(chunk_size)
-                upload_azure_func(data_azure, str(counter))
-                azure_count = azure_count + 1
-                flag = flag + chunk_size
-                l = bytes(a ^ b for a, b in zip(data_gcp, data_azure))
-                upload_aws_func(l, str(counter - 1) + "_" + str(counter))
-            counter = counter + 1
-            # file.close()
-
-        rem_chunk_size = (size - flag)
-
-        if num % 2 != 0:
-
-            data_gcp = file.read(int(rem_chunk_size / 2))
-            upload_gcp_func(data_gcp, str(counter))
-            gcp_count = gcp_count + 1
-            counter = counter + 1
-            data_azure = file.read(int(rem_chunk_size / 2))
-            upload_azure_func(data_azure, str(counter))
-            azure_count = azure_count + 1
-
-            l = bytes(a ^ b for a, b in zip(data_gcp, data_azure))
-            upload_aws_func(l, str(counter - 1) + "_" + str(counter))
-
-        else:
-
-            if counter % 2 == 0:
-                data_gcp = file.read(chunk_size)
-                upload_gcp_func(data_gcp, str(counter))
-                gcp_count = gcp_count + 1
-            else:
-                data_gcp = file.read(chunk_size)
-                upload_gcp_func(data_gcp, str(counter))
-                azure_count = azure_count + 1
-
-                l = bytes(a ^ b for a, b in zip(data_gcp, data_azure))
-                upload_aws_func(l, str(counter - 1) + "_" + str(counter))
-
-        county.azure_count = azure_count
-        county.gcp_count = gcp_count
-        county.save()
-
         return HttpResponse(
             json.dumps(
                 {
@@ -473,100 +574,7 @@ def azure_downloadtxt(myblockblob):
                                           account_key='ak9T7Jnd1gBJZdr9Bx5cVH85Iqwf7dFf7HN/WWEiadWDvh46O2/FMGkYtZVeCS9oT3DNiqMAe4uXP0SYZSByVw==')
 
     blob = block_blob_service.get_blob_to_bytes('quickstartblobs', myblockblob)
-    print(blob.content)
-    print("content downloaded !! ")
+    # print(blob.content)
+    # print("content downloaded !! ")
 
     return blob.content
-
-
-@require_http_methods(["POST"])
-@api_view(['POST'])
-@permission_classes([AllowAny])
-@csrf_exempt
-def universal_download(request):
-    if request.method == 'POST':
-
-        final_file_path = request.data['file_location']
-
-        file2 = open(final_file_path, 'wb')
-        # file2.write(d)
-
-        job_name = models.CloudFileSystem.objects.get(name='ram')
-
-        total_file_count = job_name.gcp_count + job_name.azure_count
-
-        # total_file_count = 6
-
-        print(total_file_count)
-
-        for i in range(total_file_count):
-
-            if i % 2 == 0:
-                try:
-                    gcp_blob = download_blob_gcp(str(i))
-                    file2.write(gcp_blob)
-                except:
-                    gcp_blob = None
-
-            else:
-                try:
-                    azure_blob = azure_downloadtxt(str(i))
-                except:
-                    azure_blob = None
-                    if gcp_blob is None:
-                        print("Data is corrupted!!")
-                    else:
-                        aws_blob = aws_downloadtxt(str(i - 1) + "_" + str(i))
-                        file1_b = bytearray(gcp_blob)
-                        file2_b = bytearray(aws_blob)
-
-                        # Set the length to be the smaller one
-                        size = len(file1_b) if len(file1_b) < len(file2_b) else len(file2_b)
-                        azure_blob = bytearray(size)
-
-                        # XOR between the files
-                        for ii in range(size):
-                            azure_blob[ii] = file1_b[ii] ^ file2_b[ii]
-
-                if gcp_blob is None:
-                    aws_blob = aws_downloadtxt(str(i - 1) + "_" + str(i))
-                    file1_b = bytearray(azure_blob)
-                    file2_b = bytearray(aws_blob)
-
-                    # Set the length to be the smaller one
-                    size = len(file1_b) if len(file1_b) < len(file2_b) else len(file2_b)
-                    gcp_blob = bytearray(size)
-
-                    # XOR between the files
-                    for ii in range(size):
-                        gcp_blob[ii] = file1_b[ii] ^ file2_b[ii]
-                    file2.write(gcp_blob)
-                file2.write(azure_blob)
-
-        file2.close()
-
-        if md5(final_file_path) == md5(job_name.file_location):
-            checksum = "Checksum successful."
-
-        # upload_gcp_func(file.read(), 'final')
-
-        return HttpResponse(
-            json.dumps(
-                {
-                    'message': 'Successfully Uploaded file to the AWS Platform',
-                    'checksum': checksum,
-                    'hash_value_of_the_uploaded_file': md5(job_name.file_location),
-                    'hash_value_of_the_final_generated_file': md5(final_file_path)
-                }
-            )
-        )
-
-
-def md5(fname):
-    hash_md5 = hashlib.md5()
-    with open(fname, "rb") as f:
-        for chunk in iter(lambda: f.read(4096), b""):
-            hash_md5.update(chunk)
-
-    print(hash_md5.hexdigest())
-    return hash_md5.hexdigest()
