@@ -1,8 +1,8 @@
 # Create your views here.
 
 import json
-
 import boto3
+from django.shortcuts import render, get_object_or_404, redirect
 from azure.storage.blob import BlockBlobService, PublicAccess
 from boto.s3.connection import S3Connection
 from boto3 import s3
@@ -14,6 +14,15 @@ from oauth2client.service_account import ServiceAccountCredentials
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import AllowAny
 import os
+
+
+def home(request):
+    print("into sdfa")
+    if request.method == 'POST':
+        print("into fns")
+        return HttpResponse("Successful")
+    else:
+        return render(request, 'multicloudapis/submit_file.html')
 
 
 @require_http_methods(["POST"])
@@ -52,20 +61,21 @@ def uploadfile_gcp(request):
             )
         )
 
+
 def split(handle, chunk_size):
     dat = []
     size = os.path.getsize(handle)
     num = size / chunk_size
-    if size % chunk_size != 0 :
+    if size % chunk_size != 0:
         num += 1
     file = open(handle, 'rb')
-    for piece in range(num-1):
+    for piece in range(num - 1):
         dat.append(file.read())
     dat.append(file.read())
     file.close()
 
-
     return dat
+
 
 def joinFile(handle, jobId):
     dat = []
@@ -73,6 +83,7 @@ def joinFile(handle, jobId):
     for d in dat:
         file2.write(d)
     file2.close()
+
 
 @require_http_methods(["POST"])
 @api_view(['POST'])
@@ -113,7 +124,6 @@ def uploadfile_azure(request):
                 }
             )
         )
-
 
 
 def upload(myfile):
@@ -162,7 +172,13 @@ def uploadfile_aws(request):
             )
         )
 
-
-
-
-
+def download_aws(request):
+    s3 = boto3.resource('s3')
+    # Bucket = 'my-bucket-hackathon'
+    # Key = 'qwer.txt'
+    bucket = s3.Bucket('my-bucket-hackathon')
+    for object in bucket.objects.all():
+        print(object)
+        obj = object.key
+        with open(obj, 'wb') as data:
+            bucket.download_fileobj(obj, data)
