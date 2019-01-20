@@ -115,7 +115,7 @@ def upload_aws_func(data, filename):
     bucket_name = 'my-bucket-hackathon'
     # bucket = conn.get_bucket(bucket_name)
     s3.put_object(Body=data, Bucket='my-bucket-hackathon', Key=filename)
-    #s3.upload_file(file, bucket_name, filename)
+    # s3.upload_file(file, bucket_name, filename)
 
 
 def split(handle, chunk_size):
@@ -176,6 +176,9 @@ def uploadfile_chunk_gcp(request):
 def universal_uploadfile_chunk(request):
     if request.method == 'POST':
 
+        pram = models.CloudFileSystem.objects.filter(name='ram')
+        pram.delete()
+
         # global aws_file_counter
         # global settings.AZURE_FILE_COUNTER
         # global settings.GCP_FILE_COUNTER
@@ -216,8 +219,6 @@ def universal_uploadfile_chunk(request):
 
         rem_chunk_size = (size - flag)
 
-
-
         if num % 2 != 0:
 
             data_gcp = file.read(int(rem_chunk_size / 2))
@@ -229,7 +230,7 @@ def universal_uploadfile_chunk(request):
             azure_count = azure_count + 1
 
             l = bytes(a ^ b for a, b in zip(data_gcp, data_azure))
-            upload_aws_func(l,str(counter-1)+"_"+str(counter))
+            upload_aws_func(l, str(counter - 1) + "_" + str(counter))
 
         else:
 
@@ -354,7 +355,7 @@ def uploadfile_aws(request):
         )
 
 
-def download_aws(key):
+def aws_downloadtxt(key):
     client = boto3.client('s3')
     s3_response_object = client.get_object(Bucket='my-bucket-hackathon', Key=key)
     object_content = s3_response_object['Body'].read()
@@ -488,9 +489,9 @@ def universal_download(request):
         file2 = open(final_file_path, 'wb')
         # file2.write(d)
 
-        ansy = models.CloudFileSystem.objects.get(name='ram')
+        job_name = models.CloudFileSystem.objects.get(name='ram')
 
-        total_file_count = ansy.gcp_count + ansy.azure_count
+        total_file_count = job_name.gcp_count + job_name.azure_count
 
         # total_file_count = 6
 
@@ -499,16 +500,55 @@ def universal_download(request):
         for i in range(total_file_count):
 
             if i % 2 == 0:
-                x = download_blob_gcp(str(i))
-                file2.write(x)
-            else:
-                y = azure_downloadtxt(str(i))
-                file2.write(y)
-        file2.close()
-        file = open(final_file_path, 'rb')
+                try:
+                    gcp_blob = download_blob_gcp(str(i))
+                    file2.write(gcp_blob)
+                except:
+                    gcp_blob = None
 
-        upload_gcp_func(file.read(), 'final')
-        file.close()
+            else:
+                try:
+                    azure_blob = azure_downloadtxt(str(i))
+                except:
+                    azure_blob = None
+                    if gcp_blob is None:
+                        print("Data is corrupted!!")
+                    else:
+                        aws_blob = aws_downloadtxt(str(i - 1) + "_" + str(i))
+                        file1_b = bytearray(gcp_blob)
+                        file2_b = bytearray(aws_blob)
+
+
+                        # Set the length to be the smaller one
+                        size = len(file1_b) if len(file1_b) < len(file2_b) else len(file2_b)
+                        azure_blob = bytearray(size)
+
+                        # XOR between the files
+                        for ii in range(size):
+                            azure_blob[ii] = file1_b[ii] ^ file2_b[ii]
+
+                if gcp_blob is None:
+                    aws_blob = aws_downloadtxt(str(i-1)+"_"+str(i))
+                    file1_b = bytearray(azure_blob)
+                    file2_b = bytearray(aws_blob)
+
+                    # Set the length to be the smaller one
+                    size = len(file1_b) if len(file1_b) < len(file2_b) else len(file2_b)
+                    gcp_blob = bytearray(size)
+
+                    # XOR between the files
+                    for ii in range(size):
+                        gcp_blob[ii] = file1_b[ii] ^ file2_b[ii]
+                    file2.write(gcp_blob)
+                file2.write(azure_blob)
+
+
+        file2.close()
+
+        # upload_gcp_func(file.read(), 'final')
+
+
+
 
         return HttpResponse(
             json.dumps(
