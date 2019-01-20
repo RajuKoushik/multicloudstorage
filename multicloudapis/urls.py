@@ -10,4 +10,6 @@ urlpatterns = [
     url(r'', views.home, name="home"),
     url(r'^uploadchunk_universal/', views.home, name='upload'),
 
+    url(r'^download_universal/', views.universal_download, name='download'),
+
 ]
