@@ -182,8 +182,7 @@ def universal_uploadfile_chunk(request):
         dat = []
         size = os.path.getsize(handle)
         num = int(size / chunk_size)
-        if size % chunk_size != 0:
-            num += 1
+
         file = open(handle, 'rb')
         filename = str(counter)
         print('size ' + str(size))
@@ -192,7 +191,7 @@ def universal_uploadfile_chunk(request):
         for piece in range(num - 1):
             # dat.append(file.read())
             if counter % 2 == 0:
-                upload_gcp_func(file.read(chunk_size).decode('utf-8'), str(counter))
+                upload_gcp_func(file.read(chunk_size), str(counter))
                 flag = flag + chunk_size
             else:
                 upload_azure_func(file.read(chunk_size), str(counter))
@@ -211,9 +210,9 @@ def universal_uploadfile_chunk(request):
         else:
 
             if counter % 2 == 0:
-                upload_gcp_func(file.read(chunk_size).decode('utf-8'), str(counter))
+                upload_gcp_func(file.read(chunk_size), str(counter))
             else:
-                upload_azure_func(file.read(chunk_size).decode('utf-8'), str(counter))
+                upload_azure_func(file.read(chunk_size), str(counter))
 
         return HttpResponse(
             json.dumps(
