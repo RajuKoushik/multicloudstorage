@@ -407,14 +407,20 @@ def uploadfile_azure2():
         print(e)
 
 
-def download_blob_gcp(bucket_name, source_blob_name, destination_file_name):
+def download_blob_gcp(source_blob_name):
     """Downloads a blob from the bucket."""
+    bucket_name = 'kbuckethack'
     storage_client = storage.Client()
     bucket = storage_client.get_bucket(bucket_name)
     blob = bucket.blob(source_blob_name)
 
-    blob.download_to_filename(destination_file_name)
+    # blob.download_to_filename(destination_file_name)
 
-    print('Blob {} downloaded to {}.'.format(
-        source_blob_name,
-        destination_file_name))
+    return blob.download_as_string()
+
+
+# @require_http_methods(["POST"])
+# @api_view(['POST'])
+# @permission_classes([AllowAny])
+# @csrf_exempt
+# def universal_download(request):
