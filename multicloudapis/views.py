@@ -115,12 +115,11 @@ def uploadfile_azure(request):
         )
 
 
-s3 = boto3.client('s3')
-bucket_name = 'my-bucket-hackathon'
-
 
 def upload(myfile):
     # bucket = conn.get_bucket(bucket_name)
+    s3 = boto3.client('s3')
+    bucket_name = 'my-bucket-hackathon'
     s3.upload_file(myfile, bucket_name, myfile)
     return myfile
 
