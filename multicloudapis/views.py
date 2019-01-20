@@ -98,23 +98,23 @@ def upload_azure_func(file, filename):
     block_blob_service.create_blob_from_text(container_name, filename, file)
 
 
-# def upload_aws_func(file, filename):
-#     AWS_ID = "/oZ2q2jtDTdP06Dbh3R1ek/qlsMec6hOUqwssywo"
-#     AWS_KEY = "AKIAIC4MFIXGKZ32HQEA"
-#     conn = S3Connection(aws_access_key_id=AWS_ID, aws_secret_access_key=AWS_KEY)
-#
-#     # s3 = boto3.client('s3',
-#     #                   aws_access_key_id=AWS_ID,
-#     #                   aws_secret_access_key=AWS_KEY)
-#     s3 = boto3.client('s3')
-#
-#     mypath = "aws file"
-#     # filename = file_path
-#     print(filename)
-#     bucket_name = 'my-bucket-hackathon'
-#     # bucket = conn.get_bucket(bucket_name)
-#
-#     s3.upload_file(file, bucket_name, filename)
+def upload_aws_func(data, filename):
+    AWS_ID = "AKIAIC4MFIXGKZ32HQEA"
+    AWS_KEY = "/oZ2q2jtDTdP06Dbh3R1ek/qlsMec6hOUqwssywo"
+    conn = S3Connection(aws_access_key_id=AWS_ID, aws_secret_access_key=AWS_KEY)
+
+    # s3 = boto3.client('s3',
+    #                   aws_access_key_id=AWS_ID,
+    #                   aws_secret_access_key=AWS_KEY)
+    s3 = boto3.client('s3')
+
+    mypath = "aws file"
+    # filename = file_path
+    print(filename)
+    bucket_name = 'my-bucket-hackathon'
+    # bucket = conn.get_bucket(bucket_name)
+    s3.put_object(Body=data, Bucket='my-bucket-hackathon', Key=filename)
+    #s3.upload_file(file, bucket_name, filename)
 
 
 def split(handle, chunk_size):
@@ -185,34 +185,53 @@ def universal_uploadfile_chunk(request):
 
         file = open(handle, 'rb')
         filename = str(counter)
-        print('size ' + str(size))
-        print(num)
+
         flag = 0
         for piece in range(num - 1):
             # dat.append(file.read())
             if counter % 2 == 0:
-                upload_gcp_func(file.read(chunk_size), str(counter))
+                data_gcp = file.read(chunk_size)
+                upload_gcp_func(data_gcp, str(counter))
                 flag = flag + chunk_size
             else:
-                upload_azure_func(file.read(chunk_size), str(counter))
+                data_azure = file.read(chunk_size)
+                upload_azure_func(data_azure, str(counter))
+                l = bytes(a ^ b for a, b in zip(data_gcp, data_azure))
+
+
+                upload_aws_func(l, str(counter - 1) + "_" + str(counter))
+                #upload_aws_func(data_aws, counter)
+
                 flag = flag + chunk_size
             counter = counter + 1
             # file.close()
 
         rem_chunk_size = (size - flag)
 
-        print('rem' + str(rem_chunk_size))
+
 
         if num % 2 != 0:
-            upload_gcp_func(file.read(int(rem_chunk_size / 2)), str(counter))
+            data_gcp = file.read(int(rem_chunk_size / 2))
+            upload_gcp_func(data_gcp, str(counter))
             counter = counter + 1
-            upload_azure_func(file.read(int(rem_chunk_size / 2)), str(counter))
+            data_azure = file.read(int(rem_chunk_size / 2))
+            upload_azure_func(data_azure, str(counter))
+            l = bytes(a ^ b for a, b in zip(data_gcp, data_azure))
+
+
+            upload_aws_func(l,str(counter-1)+"_"+str(counter))
         else:
 
             if counter % 2 == 0:
-                upload_gcp_func(file.read(chunk_size), str(counter))
+                data_gcp = file.read(chunk_size)
+                upload_gcp_func(data_gcp, str(counter))
             else:
-                upload_azure_func(file.read(chunk_size), str(counter))
+                data_azure = file.read(chunk_size)
+                upload_azure_func(data_azure, str(counter))
+                l = bytes(a ^ b for a, b in zip(data_gcp, data_azure))
+
+
+                upload_aws_func(l, str(counter - 1) + "_" + str(counter))
 
         return HttpResponse(
             json.dumps(
