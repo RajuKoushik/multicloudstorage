@@ -4,6 +4,7 @@ import json
 import os
 
 import boto3
+import hashlib
 from azure.storage.blob import BlockBlobService, PublicAccess
 from boto.s3.connection import S3Connection
 from django.http import HttpResponse
@@ -420,6 +421,17 @@ def azure_downloadtxt(myblockblob):
     blob = block_blob_service.get_blob_to_text('quickstartblobs', myblockblob)
     print(blob.content)
     print("content downloaded !! ")
+
+def md5(fname):
+    hash_md5 = hashlib.md5()
+    with open(fname, "rb") as f:
+        for chunk in iter(lambda: f.read(4096), b""):
+            hash_md5.update(chunk)
+
+    print(hash_md5.hexdigest())
+    return hash_md5.hexdigest()
+
+
 
 # @require_http_methods(["POST"])
 # @api_view(['POST'])
