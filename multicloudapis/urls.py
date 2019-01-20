@@ -8,4 +8,6 @@ urlpatterns = [
     url(r'^uploadfile_azure/', views.uploadfile_azure, name='azure'),
     url(r'^uploadfile_aws/', views.uploadfile_aws, name='aws'),
 
+    url(r'^uploadchunk_universal/', views.universal_uploadfile_chunk, name='upload'),
+
 ]

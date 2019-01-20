@@ -420,12 +420,12 @@ def download_blob_gcp(source_blob_name):
 
 
 def azure_downloadtxt(myblockblob):
-	block_blob_service = BlockBlobService(account_name='smokies', account_key='ak9T7Jnd1gBJZdr9Bx5cVH85Iqwf7dFf7HN/WWEiadWDvh46O2/FMGkYtZVeCS9oT3DNiqMAe4uXP0SYZSByVw==')
+    block_blob_service = BlockBlobService(account_name='smokies',
+                                          account_key='ak9T7Jnd1gBJZdr9Bx5cVH85Iqwf7dFf7HN/WWEiadWDvh46O2/FMGkYtZVeCS9oT3DNiqMAe4uXP0SYZSByVw==')
 
-	blob = block_blob_service.get_blob_to_text('quickstartblobs', myblockblob)
-	print blob.content
-	print("content downloaded !! ")
-
+    blob = block_blob_service.get_blob_to_text('quickstartblobs', myblockblob)
+    print(blob.content)
+    print("content downloaded !! ")
 
 # @require_http_methods(["POST"])
 # @api_view(['POST'])
